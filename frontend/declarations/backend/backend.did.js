@@ -22,11 +22,15 @@ export const idlFactory = ({ IDL }) => {
   });
   const Card = IDL.Record({ 'rank' : Rank, 'suit' : Suit });
   const Hand = IDL.Vec(Card);
+  const Player = IDL.Record({
+    'hand' : Hand,
+    'chips' : IDL.Nat,
+    'currentBet' : IDL.Nat,
+  });
   const GameState = IDL.Record({
     'pot' : IDL.Nat,
-    'playerChips' : IDL.Nat,
+    'currentPlayerIndex' : IDL.Nat,
     'communityCards' : Hand,
-    'aiHand' : Hand,
     'stage' : IDL.Variant({
       'Flop' : IDL.Null,
       'Turn' : IDL.Null,
@@ -34,19 +38,16 @@ export const idlFactory = ({ IDL }) => {
       'Showdown' : IDL.Null,
       'PreFlop' : IDL.Null,
     }),
-    'aiChips' : IDL.Nat,
-    'playerHand' : Hand,
-    'currentBet' : IDL.Nat,
+    'players' : IDL.Vec(Player),
   });
   const Result = IDL.Variant({ 'ok' : GameState, 'err' : IDL.Text });
   const Result_1 = IDL.Variant({ 'ok' : IDL.Text, 'err' : IDL.Text });
   return IDL.Service({
     'advanceGameState' : IDL.Func([], [Result], []),
-    'aiAction' : IDL.Func([], [Result], []),
     'determineWinner' : IDL.Func([], [Result_1], []),
     'getGameState' : IDL.Func([], [IDL.Opt(GameState)], ['query']),
     'initializeGame' : IDL.Func([], [GameState], []),
-    'placeBet' : IDL.Func([IDL.Nat], [Result], []),
+    'placeBet' : IDL.Func([IDL.Nat, IDL.Nat], [Result], []),
   });
 };
 export const init = ({ IDL }) => { return []; };

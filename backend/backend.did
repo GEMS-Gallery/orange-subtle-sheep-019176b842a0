@@ -31,15 +31,18 @@ type Rank =
    Three;
    Two;
  };
+type Player = 
+ record {
+   chips: nat;
+   currentBet: nat;
+   hand: Hand;
+ };
 type Hand = vec Card;
 type GameState = 
  record {
-   aiChips: nat;
-   aiHand: Hand;
    communityCards: Hand;
-   currentBet: nat;
-   playerChips: nat;
-   playerHand: Hand;
+   currentPlayerIndex: nat;
+   players: vec Player;
    pot: nat;
    stage: variant {
             Flop;
@@ -56,9 +59,8 @@ type Card =
  };
 service : {
   advanceGameState: () -> (Result);
-  aiAction: () -> (Result);
   determineWinner: () -> (Result_1);
   getGameState: () -> (opt GameState) query;
   initializeGame: () -> (GameState);
-  placeBet: (nat) -> (Result);
+  placeBet: (nat, nat) -> (Result);
 }

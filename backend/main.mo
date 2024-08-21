@@ -19,14 +19,16 @@ actor TexasHoldem {
   type Rank = {#Two; #Three; #Four; #Five; #Six; #Seven; #Eight; #Nine; #Ten; #Jack; #Queen; #King; #Ace};
   type Card = {suit: Suit; rank: Rank};
   type Hand = [Card];
-  type GameState = {
-    playerHand: Hand;
-    aiHand: Hand;
-    communityCards: Hand;
-    playerChips: Nat;
-    aiChips: Nat;
-    pot: Nat;
+  type Player = {
+    hand: Hand;
+    chips: Nat;
     currentBet: Nat;
+  };
+  type GameState = {
+    players: [Player];
+    communityCards: Hand;
+    pot: Nat;
+    currentPlayerIndex: Nat;
     stage: {#PreFlop; #Flop; #Turn; #River; #Showdown};
   };
 
@@ -76,13 +78,14 @@ actor TexasHoldem {
     deck := initDeck();
     shuffleDeck();
     let newState = {
-      playerHand = dealCards(2);
-      aiHand = dealCards(2);
+      players = [
+        { hand = dealCards(2); chips = 1000; currentBet = 0 },
+        { hand = dealCards(2); chips = 1000; currentBet = 0 },
+        { hand = dealCards(2); chips = 1000; currentBet = 0 }
+      ];
       communityCards = [];
-      playerChips = 1000;
-      aiChips = 1000;
       pot = 0;
-      currentBet = 0;
+      currentPlayerIndex = 0;
       stage = #PreFlop;
     };
     gameState := ?newState;
@@ -93,46 +96,33 @@ actor TexasHoldem {
     gameState
   };
 
-  public func placeBet(amount: Nat) : async Result.Result<GameState, Text> {
+  public func placeBet(playerIndex: Nat, amount: Nat) : async Result.Result<GameState, Text> {
     switch (gameState) {
       case (null) { #err("Game not initialized") };
       case (?state) {
-        if (amount > state.playerChips) {
+        if (playerIndex >= state.players.size()) {
+          return #err("Invalid player index");
+        };
+        let player = state.players[playerIndex];
+        if (amount > player.chips) {
           return #err("Insufficient chips");
         };
+        var newPlayers = Array.tabulate<Player>(state.players.size(), func (i) {
+          if (i == playerIndex) {
+            {
+              hand = player.hand;
+              chips = player.chips - amount;
+              currentBet = player.currentBet + amount;
+            }
+          } else {
+            state.players[i]
+          }
+        });
         let newState = {
-          playerHand = state.playerHand;
-          aiHand = state.aiHand;
+          players = newPlayers;
           communityCards = state.communityCards;
-          playerChips = state.playerChips - amount;
-          aiChips = state.aiChips;
           pot = state.pot + amount;
-          currentBet = amount;
-          stage = state.stage;
-        };
-        gameState := ?newState;
-        #ok(newState)
-      };
-    }
-  };
-
-  public func aiAction() : async Result.Result<GameState, Text> {
-    switch (gameState) {
-      case (null) { #err("Game not initialized") };
-      case (?state) {
-        // Simple AI logic: always call or check
-        let aiBet = if (state.currentBet > 0) { state.currentBet } else { 0 };
-        if (aiBet > state.aiChips) {
-          return #err("AI cannot match the bet");
-        };
-        let newState = {
-          playerHand = state.playerHand;
-          aiHand = state.aiHand;
-          communityCards = state.communityCards;
-          playerChips = state.playerChips;
-          aiChips = state.aiChips - aiBet;
-          pot = state.pot + aiBet;
-          currentBet = 0;
+          currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.size();
           stage = state.stage;
         };
         gameState := ?newState;
@@ -164,13 +154,10 @@ actor TexasHoldem {
           case (#Showdown) { return #err("Game is already at showdown"); };
         };
         let newState = {
-          playerHand = state.playerHand;
-          aiHand = state.aiHand;
+          players = state.players;
           communityCards = newCommunityCards;
-          playerChips = state.playerChips;
-          aiChips = state.aiChips;
           pot = state.pot;
-          currentBet = 0;
+          currentPlayerIndex = 0;
           stage = newStage;
         };
         gameState := ?newState;
@@ -200,15 +187,16 @@ actor TexasHoldem {
         if (state.stage != #Showdown) {
           return #err("Game is not at showdown stage");
         };
-        let playerScore = evaluateHand(Array.append(state.playerHand, state.communityCards));
-        let aiScore = evaluateHand(Array.append(state.aiHand, state.communityCards));
-        if (playerScore > aiScore) {
-          #ok("Player wins!")
-        } else if (aiScore > playerScore) {
-          #ok("AI wins!")
-        } else {
-          #ok("It's a tie!")
-        }
+        var winnerIndex = 0;
+        var highestScore = 0;
+        for (i in Iter.range(0, state.players.size() - 1)) {
+          let playerScore = evaluateHand(Array.append(state.players[i].hand, state.communityCards));
+          if (playerScore > highestScore) {
+            highestScore := playerScore;
+            winnerIndex := i;
+          };
+        };
+        #ok("Player " # Nat.toText(winnerIndex + 1) # " wins!")
       };
     }
   };

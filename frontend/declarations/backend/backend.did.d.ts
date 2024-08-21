@@ -5,19 +5,21 @@ import type { IDL } from '@dfinity/candid';
 export interface Card { 'rank' : Rank, 'suit' : Suit }
 export interface GameState {
   'pot' : bigint,
-  'playerChips' : bigint,
+  'currentPlayerIndex' : bigint,
   'communityCards' : Hand,
-  'aiHand' : Hand,
   'stage' : { 'Flop' : null } |
     { 'Turn' : null } |
     { 'River' : null } |
     { 'Showdown' : null } |
     { 'PreFlop' : null },
-  'aiChips' : bigint,
-  'playerHand' : Hand,
-  'currentBet' : bigint,
+  'players' : Array<Player>,
 }
 export type Hand = Array<Card>;
+export interface Player {
+  'hand' : Hand,
+  'chips' : bigint,
+  'currentBet' : bigint,
+}
 export type Rank = { 'Ace' : null } |
   { 'Six' : null } |
   { 'Ten' : null } |
@@ -41,11 +43,10 @@ export type Suit = { 'Diamonds' : null } |
   { 'Spades' : null };
 export interface _SERVICE {
   'advanceGameState' : ActorMethod<[], Result>,
-  'aiAction' : ActorMethod<[], Result>,
   'determineWinner' : ActorMethod<[], Result_1>,
   'getGameState' : ActorMethod<[], [] | [GameState]>,
   'initializeGame' : ActorMethod<[], GameState>,
-  'placeBet' : ActorMethod<[bigint], Result>,
+  'placeBet' : ActorMethod<[bigint, bigint], Result>,
 }
 export declare const idlFactory: IDL.InterfaceFactory;
 export declare const init: (args: { IDL: typeof IDL }) => IDL.Type[];

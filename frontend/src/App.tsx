@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Box, Button, Typography, CircularProgress } from '@mui/material';
+import { Container, Box, Button, Typography, CircularProgress, Grid } from '@mui/material';
 import { backend } from 'declarations/backend';
 
 type Card = {
@@ -7,14 +7,17 @@ type Card = {
   rank: 'Two' | 'Three' | 'Four' | 'Five' | 'Six' | 'Seven' | 'Eight' | 'Nine' | 'Ten' | 'Jack' | 'Queen' | 'King' | 'Ace';
 };
 
-type GameState = {
-  playerHand: Card[];
-  aiHand: Card[];
-  communityCards: Card[];
-  playerChips: bigint;
-  aiChips: bigint;
-  pot: bigint;
+type Player = {
+  hand: Card[];
+  chips: bigint;
   currentBet: bigint;
+};
+
+type GameState = {
+  players: Player[];
+  communityCards: Card[];
+  pot: bigint;
+  currentPlayerIndex: number;
   stage: 'PreFlop' | 'Flop' | 'Turn' | 'River' | 'Showdown';
 };
 
@@ -39,35 +42,20 @@ const App: React.FC = () => {
     }
   };
 
-  const placeBet = async (amount: number) => {
+  const placeBet = async (playerIndex: number, amount: number) => {
     setLoading(true);
     try {
-      const result = await backend.placeBet(BigInt(amount));
+      const result = await backend.placeBet(playerIndex, BigInt(amount));
       if ('ok' in result) {
         setGameState(result.ok);
-        await aiAction();
+        if (result.ok.currentPlayerIndex === 0) {
+          await advanceGameState();
+        }
       } else {
         setError(result.err);
       }
     } catch (err) {
       setError('Failed to place bet');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const aiAction = async () => {
-    setLoading(true);
-    try {
-      const result = await backend.aiAction();
-      if ('ok' in result) {
-        setGameState(result.ok);
-        await advanceGameState();
-      } else {
-        setError(result.err);
-      }
-    } catch (err) {
-      setError('AI action failed');
     } finally {
       setLoading(false);
     }
@@ -128,6 +116,22 @@ const App: React.FC = () => {
     </Box>
   );
 
+  const renderPlayer = (player: Player, index: number) => (
+    <Box key={index} sx={{ border: '1px solid white', padding: 2, margin: 1 }}>
+      <Typography>Player {index + 1}</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+        {player.hand.map((card, cardIndex) => renderCard(card))}
+      </Box>
+      <Typography>Chips: {Number(player.chips)}</Typography>
+      <Typography>Current Bet: {Number(player.currentBet)}</Typography>
+      <Box sx={{ mt: 1 }}>
+        <Button onClick={() => placeBet(index, 10)} disabled={loading || gameState?.currentPlayerIndex !== index}>Bet 10</Button>
+        <Button onClick={() => placeBet(index, 20)} disabled={loading || gameState?.currentPlayerIndex !== index}>Bet 20</Button>
+        <Button onClick={() => placeBet(index, 50)} disabled={loading || gameState?.currentPlayerIndex !== index}>Bet 50</Button>
+      </Box>
+    </Box>
+  );
+
   if (loading) {
     return <CircularProgress />;
   }
@@ -143,26 +147,19 @@ const App: React.FC = () => {
 
   return (
     <Container>
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-        {gameState.aiHand.map((card, index) => (
-          <Box key={index} sx={{ width: 50, height: 70, backgroundColor: 'blue', borderRadius: 1, margin: 0.5 }} />
+      <Grid container spacing={2}>
+        {gameState.players.map((player, index) => (
+          <Grid item xs={12} md={4} key={index}>
+            {renderPlayer(player, index)}
+          </Grid>
         ))}
-      </Box>
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+      </Grid>
+      <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
         {gameState.communityCards.map((card, index) => renderCard(card))}
       </Box>
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-        {gameState.playerHand.map((card, index) => renderCard(card))}
-      </Box>
-      <Typography>Player Chips: {Number(gameState.playerChips)}</Typography>
-      <Typography>AI Chips: {Number(gameState.aiChips)}</Typography>
       <Typography>Pot: {Number(gameState.pot)}</Typography>
       <Typography>Stage: {gameState.stage}</Typography>
-      <Box sx={{ mt: 2 }}>
-        <Button onClick={() => placeBet(10)} disabled={loading}>Bet 10</Button>
-        <Button onClick={() => placeBet(20)} disabled={loading}>Bet 20</Button>
-        <Button onClick={() => placeBet(50)} disabled={loading}>Bet 50</Button>
-      </Box>
+      <Typography>Current Player: Player {gameState.currentPlayerIndex + 1}</Typography>
       {error && <Typography color="error">{error}</Typography>}
     </Container>
   );
