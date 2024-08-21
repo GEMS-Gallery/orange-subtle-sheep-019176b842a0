@@ -1,0 +1,64 @@
+type Suit = 
+ variant {
+   Clubs;
+   Diamonds;
+   Hearts;
+   Spades;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok: text;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok: GameState;
+ };
+type Rank = 
+ variant {
+   Ace;
+   Eight;
+   Five;
+   Four;
+   Jack;
+   King;
+   Nine;
+   Queen;
+   Seven;
+   Six;
+   Ten;
+   Three;
+   Two;
+ };
+type Hand = vec Card;
+type GameState = 
+ record {
+   aiChips: nat;
+   aiHand: Hand;
+   communityCards: Hand;
+   currentBet: nat;
+   playerChips: nat;
+   playerHand: Hand;
+   pot: nat;
+   stage: variant {
+            Flop;
+            PreFlop;
+            River;
+            Showdown;
+            Turn;
+          };
+ };
+type Card = 
+ record {
+   rank: Rank;
+   suit: Suit;
+ };
+service : {
+  advanceGameState: () -> (Result);
+  aiAction: () -> (Result);
+  determineWinner: () -> (Result_1);
+  getGameState: () -> (opt GameState) query;
+  initializeGame: () -> (GameState);
+  placeBet: (nat) -> (Result);
+}
